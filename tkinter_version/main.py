@@ -1,6 +1,3 @@
-# Хотамов Умед
-# ИУ7-23Б
-
 from tkinter import *
 from tkinter import filedialog
 from tkinter import messagebox

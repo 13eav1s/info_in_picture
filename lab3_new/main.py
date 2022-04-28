@@ -1,116 +1,95 @@
 from PIL import Image
-from PyQt6.QtCore import Qt
-import numpy as np
 
 from design import *
 
 
-def get8bits(num):
-    base = 2
-    newNum = ''
-    while num > 0:
-        newNum = str(num % base) + newNum
-        num //= base
-    n = 8 - len(newNum)
-    newNum = "0" * n + newNum
-    return newNum
+# Фукнция перевод строку в последовательность битов
+def text_to_binary(value):
+    return ''.join(f'{ord(i):08b}' for i in value)
 
 
-def getdata():
-    path = ui.path_to_pic_label.text()
-    if path != "Текущий путь к картинке":
-        image = Image.open(path)
-        pixels = image.load()
-        print(pixels[1, 1])
-
-
-def getstring():
-    string = ui.ascii_string.text()
-    a = []
-    for i in string:
-        a.append(ord(i))
-    return a
-
-
-def getscratch(pixels, h, w):
-    dst = np.zeros((h, w, 3))
-    for i in range(h):
-        for j in range(w):
-            p = pixels[j, i]
-            dst[i, j] = p
-    return dst
-
-
-def conceal():
-    a = getstring()
-    path = ui.path_to_pic_label.text()
-    image = Image.open(path)
-    pixels = image.load()
-    i1 = 0
+def extract():
+    image_path = ui.path_to_pic_label.text()
+    if image_path == "Текущий путь к картинке":
+        message = QtWidgets.QMessageBox()
+        message.setText("Choose the picture!")
+        message.exec()
+        return 0
     flag = 0
-    dst = getscratch(pixels, image.height, image.width)
-    i = 0
-    j = 0
-    while True:
-        bitstring = get8bits(a[i1])
-        bits = []
-        index = 0
-        for h in range(8):
-            bits.append(bitstring[h])
-        p1 = (int(bits[index + 7]), int(bits[index + 6]), int(bits[index + 5]))
-        p2 = (int(bits[index + 4]), int(bits[index + 3]), int(bits[index + 2]))
-        tempi = i
-        tempj = j
-        if j + 2 >= image.width:
-            tempi += 1
-            tempj -= 2
-            j
-        p3 = (int(bits[index + 1]), int(bits[index]), dst[tempi, tempj][2])
-        index += 8
-        i1 += 1
+    stop = '@'
+    img = Image.open(image_path)
+    width, height = img.size
+    last_bits = ''
+    secret_message = []
+    for x in range(0, width):
+        for y in range(0, height):
+            pixel = list(img.getpixel((x, y)))
+            for n in range(0, 3):
+                last_bits += bin(pixel[n])[-1]
+                secret_bits = [last_bits[i:i + 8] for i in range(0, len(last_bits), 8)]
+                secret_message = [chr(int(secret_bits[i], 2)) for i in range(len(secret_bits))]
 
-        if j == image.width:
-            j = 0
-            i += 1
-            if i == image.height:
-                break
-        dst[i, j] = p1
-        j += 1
-
-        if j == image.width:
-            j = 0
-            i += 1
-            if i == image.height:
-                break
-        dst[i, j] = p2
-        j += 1
-
-        if j == image.width:
-            j = 0
-            i += 1
-            if i == image.height:
-                break
-        dst[i, j] = p3
-        j += 1
-
-        if j == image.width:
-            j = 0
-            i += 1
-            if i == image.height:
-                break
-
-        if i1 + 1 > len(a):
+                if stop in secret_message:
+                    flag = 1
+        if flag:
+            secret_text = ""
+            i = 0
+            while secret_message[i] != stop:
+                secret_text += secret_message[i]
+                i += 1
+            message = QtWidgets.QMessageBox()
+            message.setText(secret_text)
+            message.exec()
+            # print(secret_message[:secret_message.index(stop)])
             break
-    print("i = ", i, " j = ", j)
-    print(image.width, len(dst[0]))
-    img2 = Image.fromarray(np.uint8(dst))
-    img2.save("3.bmp", "bmp")
+        else:
+            message = QtWidgets.QMessageBox()
+            message.setText("No secret message")
+            message.exec()
+            break
 
 
-def add_functions(ui):
+def encode():
+    image_path = ui.path_to_pic_label.text()
+    if image_path == "Текущий путь к картинке":
+        message = QtWidgets.QMessageBox()
+        message.setText("Choose the picture!")
+        message.exec()
+        return 0
+    if ui.ascii_string.text() == "":
+        message = QtWidgets.QMessageBox()
+        message.setText("Type the string!")
+        message.exec()
+        return 0
+    message_bin = text_to_binary(ui.ascii_string.text() + '@')
+
+    try:
+        img = Image.open(image_path)
+        width, height = img.size
+        index = 0
+        for x in range(0, width):
+            for y in range(0, height):
+                pixel = list(img.getpixel((x, y)))
+                for n in range(0, 3):
+                    if index < len(message_bin):
+                        pixel_bin = list(bin(pixel[n]))[2:]
+                        while len(pixel_bin) < 8:
+                            pixel_bin += ['0']
+                        pixel_bin[-1] = message_bin[index]
+                        pixel_bin = ''.join(pixel_bin)
+                        pixel[n] = int(pixel_bin, 2)
+                        index += 1
+                img.putpixel((x, y), tuple(pixel))
+        img.save('source_secret.bmp', 'BMP')
+
+    except NameError:
+        print("ERROR!")
+
+
+def add_functions():
     ui.path.clicked.connect(lambda: ChoiceImages())
-    ui.concealment.clicked.connect(lambda: conceal())
-
+    ui.concealment.clicked.connect(lambda: encode())
+    ui.string_extraction.clicked.connect(lambda: extract())
 
 
 def ChoiceImages():
@@ -125,7 +104,6 @@ def ChoiceImages():
         aspectRatio = pixmap.width() / pixmap.height()
         pixmap.scaled(int(280 * aspectRatio), 280)
         ui.image.setPixmap(pixmap.scaled(int(280 * aspectRatio), 280))
-        getdata()
 
 
 if __name__ == "__main__":
@@ -135,5 +113,5 @@ if __name__ == "__main__":
     ui = Ui_MainWindow()
     ui.setupUi(MainWindow)
     MainWindow.show()
-    add_functions(ui)
+    add_functions()
     sys.exit(app.exec())
