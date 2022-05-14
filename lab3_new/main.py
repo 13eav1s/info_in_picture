@@ -49,6 +49,31 @@ def extract():
             break
 
 
+def encode1(mess, img):
+    message_bin = text_to_binary(mess + '@')
+
+    try:
+        width, height = img.size
+        index = 0
+        for x in range(0, width):
+            for y in range(0, height):
+                pixel = list(img.getpixel((x, y)))
+                for n in range(0, 3):
+                    if index < len(message_bin):
+                        x1 = pixel[n]
+                        x1 = x1 & 11111110
+                        e = int(message_bin[index])
+                        x1 = x1 | e
+                        pixel[n] = x1
+                        index += 1
+                img.putpixel((x, y), tuple(pixel))
+        img.save('source_secret.bmp', 'BMP')
+
+    except NameError:
+        print("ERROR!")
+
+
+
 def encode():
     image_path = ui.path_to_pic_label.text()
     if image_path == "Текущий путь к картинке":
@@ -72,12 +97,17 @@ def encode():
                 pixel = list(img.getpixel((x, y)))
                 for n in range(0, 3):
                     if index < len(message_bin):
-                        pixel_bin = list(bin(pixel[n]))[2:]
-                        while len(pixel_bin) < 8:
-                            pixel_bin += ['0']
-                        pixel_bin[-1] = message_bin[index]
-                        pixel_bin = ''.join(pixel_bin)
-                        pixel[n] = int(pixel_bin, 2)
+                        # pixel_bin = list(bin(pixel[n]))[2:]
+                        # while len(pixel_bin) < 8:
+                        #     pixel_bin += ['0']
+                        # pixel_bin[-1] = message_bin[index]
+                        # pixel_bin = ''.join(pixel_bin)
+                        # pixel[n] = int(pixel_bin, 2)
+                        x1 = pixel[n]
+                        x1 = x1 & 11111110
+                        e = int(message_bin[index])
+                        x1 = x1 | e
+                        pixel[n] = x1
                         index += 1
                 img.putpixel((x, y), tuple(pixel))
         img.save('source_secret.bmp', 'BMP')
